@@ -21,9 +21,9 @@ cripio -email user@mail.com -password s3cret -q 'port:5060' -o sip.jsonl
 - `-email` -- criminalip.io account email
 - `-password` -- account password
 - `-q` -- search query (same syntax as the web UI: `port:5060`, `country:US`, etc.)
-- `-o` -- output JSONL file path (one JSON record per line)
+- `-o` -- output JSONL file path (optional; prints to stdout if omitted)
 
-Progress goes to stderr, so stdout stays clean:
+Progress goes to stderr, so stdout stays clean and pipeable:
 
 ```
 [*] logging in as user@mail.com
@@ -38,11 +38,18 @@ Progress goes to stderr, so stdout stays clean:
 
 Output is JSONL -- one JSON object per line. Fields include `ip_address`, `port`, `banner`, `as_name`, `country`, etc. Pipe it into `jq`, `grep`, or parse with scripts.
 
-## Example: dump all IPs
+## Examples
+
+Save to file:
 
 ```bash
 cripio -email me@mail.com -password hunter2 -q 'port:5060' -o dump.jsonl
-jq -r '.ip_address' dump.jsonl | sort -u > ips.txt
+```
+
+Pipe straight into `jq`:
+
+```bash
+cripio -email me@mail.com -password hunter2 -q 'port:5060' | jq -r '.ip_address' | sort -u > ips.txt
 wc -l ips.txt
 # 51150
 ```

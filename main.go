@@ -156,7 +156,7 @@ func (c *cip) poll(q string, total int, taskID string) (string, error) {
 	return "", fmt.Errorf("export timed out (10 min)")
 }
 
-func fetch(link, out string) (int, error) {
+func fetch(link string, dst io.Writer) (int, error) {
 	req, err := http.NewRequest("GET", link, nil)
 	if err != nil {
 		return 0, err
@@ -189,13 +189,7 @@ func fetch(link, out string) (int, error) {
 		rd = gz
 	}
 
-	f, err := os.Create(out)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-
-	w := bufio.NewWriterSize(f, 256<<10)
+	w := bufio.NewWriterSize(dst, 256<<10)
 	sc := bufio.NewScanner(rd)
 	sc.Buffer(make([]byte, 0, 1<<20), 10<<20)
 
@@ -219,11 +213,11 @@ func main() {
 	email := flag.String("email", "", "account email")
 	pw := flag.String("password", "", "account password")
 	q := flag.String("q", "", "search query (e.g. port:5060)")
-	o := flag.String("o", "", "output JSONL file")
+	o := flag.String("o", "", "output JSONL file (default: stdout)")
 	flag.Parse()
 
-	if *email == "" || *pw == "" || *q == "" || *o == "" {
-		fmt.Fprintln(os.Stderr, "usage: cripio -email EMAIL -password PW -q QUERY -o FILE.jsonl")
+	if *email == "" || *pw == "" || *q == "" {
+		fmt.Fprintln(os.Stderr, "usage: cripio -email EMAIL -password PW -q QUERY [-o FILE.jsonl]")
 		os.Exit(1)
 	}
 
@@ -261,10 +255,25 @@ func main() {
 	}
 	fmt.Fprintf(os.Stderr, "[*] downloading...\n")
 
-	n, err := fetch(link, *o)
+	var dst io.WriteCloser = os.Stdout
+	if *o != "" {
+		f, err := os.Create(*o)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[-] create %s: %v\n", *o, err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		dst = f
+	}
+
+	n, err := fetch(link, dst)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[-] download failed: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "[+] done: %d records -> %s\n", n, *o)
+	if *o != "" {
+		fmt.Fprintf(os.Stderr, "[+] done: %d records -> %s\n", n, *o)
+	} else {
+		fmt.Fprintf(os.Stderr, "[+] done: %d records\n", n)
+	}
 }
