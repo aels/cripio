@@ -4,32 +4,26 @@
 
 CLI tool for bulk-exporting search results from [Criminal IP](https://criminalip.io). Authenticates with email/password, requests a full server-side export, polls until ready, downloads the gzip NDJSON artifact, and saves clean JSONL. Single binary, single thread, zero dependencies beyond Go stdlib.
 
-This README is written in Russian, so, please, use a translator.
+No API key needed -- just an account on criminalip.io and a query.
 
----
-
-Однопоточная утилита на Go для bulk-экспорта поисковых результатов из Criminal IP. Логинимся по email/паролю, запрашиваем серверный экспорт всех результатов по нашему запросу, поллим статус задачи, скачиваем gzip-архив с NDJSON, сохраняем в чистый JSONL-файл.
-
-Не нужен API-ключ -- нужен только аккаунт на criminalip.io и запрос. Зависимостей нет, только Go stdlib.
-
-## Установка
+## Install
 
 ```bash
 go install github.com/aels/cripio@latest
 ```
 
-## Использование
+## Usage
 
 ```bash
 cripio -email user@mail.com -password s3cret -q 'port:5060' -o sip.jsonl
 ```
 
-- `-email` -- email аккаунта на criminalip.io
-- `-password` -- пароль
-- `-q` -- поисковый запрос (тот же синтаксис, что в веб-интерфейсе: `port:5060`, `country:US` и т.д.)
-- `-o` -- путь к выходному JSONL-файлу (по одной JSON-записи на строку)
+- `-email` -- criminalip.io account email
+- `-password` -- account password
+- `-q` -- search query (same syntax as the web UI: `port:5060`, `country:US`, etc.)
+- `-o` -- output JSONL file path (one JSON record per line)
 
-Прогресс пишем в stderr, по-этому stdout остается чистым:
+Progress goes to stderr, so stdout stays clean:
 
 ```
 [*] logging in as user@mail.com
@@ -42,9 +36,9 @@ cripio -email user@mail.com -password s3cret -q 'port:5060' -o sip.jsonl
 [+] done: 51150 records -> sip.jsonl
 ```
 
-Результат -- JSONL, по одному JSON-объекту на строку. Поля: `ip_address`, `port`, `banner`, `as_name`, `country` и проч. Дальше делаем что хотим: `jq`, `grep`, парсим скриптами.
+Output is JSONL -- one JSON object per line. Fields include `ip_address`, `port`, `banner`, `as_name`, `country`, etc. Pipe it into `jq`, `grep`, or parse with scripts.
 
-## Пример: выгрузить все IP
+## Example: dump all IPs
 
 ```bash
 cripio -email me@mail.com -password hunter2 -q 'port:5060' -o dump.jsonl
@@ -53,12 +47,12 @@ wc -l ips.txt
 # 51150
 ```
 
-## Как это работает
+## How it works
 
-Утилита повторяет ровно тот же цикл, который делает веб-интерфейс Criminal IP при нажатии кнопки "Download":
+The tool replays the exact same cycle the Criminal IP web UI does when you hit "Download":
 
-1. `POST /api/auth/user/login` -- аутентификация, получаем сессийную cookie `criminalip.sid`
-2. `GET /api/proxy/search/banner/stats?query=` -- узнаем общее число результатов
-3. `GET /api/proxy/download/asset_search_result_download?limit=&query=&total=` -- запускаем серверный экспорт
-4. `GET /api/proxy/download/download_status?query=&req_cnt=&task_id=` -- поллим статус задачи каждые 5 сек
-5. `GET https://dl.criminalip.io/asset/<task_id>` -- скачиваем gzip NDJSON, распаковываем, сохраняем как JSONL
+1. `POST /api/auth/user/login` -- authenticate, grab the `criminalip.sid` session cookie
+2. `GET /api/proxy/search/banner/stats?query=` -- get the total result count
+3. `GET /api/proxy/download/asset_search_result_download?limit=&query=&total=` -- kick off the server-side export
+4. `GET /api/proxy/download/download_status?query=&req_cnt=&task_id=` -- poll task status every 5 sec
+5. `GET https://dl.criminalip.io/asset/<task_id>` -- download gzip NDJSON, decompress, save as JSONL
